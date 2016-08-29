@@ -32,7 +32,7 @@ public class Feed {
     private String field5;
     @SerializedName("field6")
     @Expose
-    private Object field6;
+    private String field6;
 
     /**
      *
@@ -174,7 +174,7 @@ public class Feed {
      * @param field6
      * The field6
      */
-    public void setField6(Object field6) {
+    public void setField6(String field6) {
         this.field6 = field6;
     }
 

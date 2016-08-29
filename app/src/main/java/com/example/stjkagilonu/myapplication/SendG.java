@@ -117,15 +117,7 @@ public class SendG extends MainActivity {
                     @Override
                     public void success(Integer getJSON, Response response)
                     {
-                        update();
-                        Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
-                        amountToSend.setText(base_int + " ₺");
-                        if(!deviceConnected) {
-                            onClickStart();
-                        }
-                        onClickSend();
 
-                        counter = 0;
                     }
 
                     @Override
@@ -138,6 +130,16 @@ public class SendG extends MainActivity {
                 });
                 AlertDialog.Builder transaction_success = new AlertDialog.Builder(SendG.this);
                 transaction_success.setMessage("Money is sent!");
+
+                update();
+                Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                amountToSend.setText(base_int + " ₺");
+                if(!deviceConnected) {
+                    onClickStart();
+                }
+                onClickSend();
+
+                counter = 0;
 
             }
         });
@@ -246,7 +248,7 @@ public class SendG extends MainActivity {
         string.concat("\n");
         try {
             outputStream.write(string.getBytes());
-            Log.i(TAGB, "info sent");
+            Log.i(TAGB, "info sent: " + string);
         } catch (IOException e) {
             e.printStackTrace();
         }

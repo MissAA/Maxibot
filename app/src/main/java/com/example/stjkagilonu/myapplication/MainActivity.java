@@ -18,6 +18,7 @@ import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,7 +52,7 @@ public class MainActivity extends AppCompatActivity
     private int amountOrder[] = {20, 50, 100, 200};
 
     //Bluetooth connection elements
-    protected final String DEVICE_NAME="maxibot";
+    protected final String DEVICE_NAME="HTC One Mini";
     protected final UUID PORT_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");//Serial Port Service ID
     protected BluetoothDevice device;
     protected BluetoothSocket socket;
@@ -66,7 +67,6 @@ public class MainActivity extends AppCompatActivity
     {
 
         super.onCreate(savedInstanceState); //call for the previous saved state
-        Log.i(TAG, "The main activity is created.");
 
         //Creating layout
         setContentView(R.layout.activity_main);
@@ -80,11 +80,90 @@ public class MainActivity extends AppCompatActivity
         //Shows the amount to be send to the kumbara
         final TextView amountToSend = (TextView)findViewById(R.id.amountDisplay);
         amountToSend.setText(base_int + " ₺");
+
+        RestAdapter radapter=new RestAdapter.Builder().setEndpoint(url).build();
+        final MInterface restInt = radapter.create(MInterface.class);
+
+        final ImageView background_displayedAmount = (ImageView)findViewById(R.id.currentAmount_BG);
+        background_displayedAmount.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
+            public void onSwipeTop() //To send
+            {
+                String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
+                String formattedAmountToSend = totalAmountFormatter[0];
+
+                Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
+                Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
+
+                int currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
+                currentTotalTLAmount = Integer.toString(currentTotal);
+                restInt.setFields("TL", formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                    @Override
+                    public void success(Integer getJSON, Response response) {
+
+                    }
+
+                    @Override
+                    public void failure(RetrofitError error) {
+                        String cause = error.getCause().toString();
+                        String err = error.getMessage();
+                        Log.e(TAG, "Thingspeak send request failed. " + cause);
+                    }
+                });
+
+
+                update();
+                Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
+
+                if(deviceConnected) {
+                    onClickSend();
+                    Log.i(TAGB, "info sending sueccessful");
+                }
+                counter = 0;
+
+                Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                amountToSend.setText(base_int + " ₺");
+
+                Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
+                Toast.makeText(getApplicationContext(),"Para gönderildi",Toast.LENGTH_SHORT).show();
+            }
+            public void onSwipeRight() //To increase the amount to be sent
+            {
+                if(!amountToSend.getText().toString().equals(max_int + " ₺"))
+                {
+                    counter++;
+
+                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter) + " ₺");
+                    Log.i(TAG, "Add button pressed");
+                }
+                else
+                    counter = 3;
+            }
+            public void onSwipeLeft() //To increase the amount to be sent
+            {
+                if(!amountToSend.getText().toString().equals(base_int + " ₺"))
+                {
+                    counter--;
+                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter) + " ₺");
+                    Log.i(TAG, "Subtract button pressed");
+                    Log.i(TAG, "Counter (end of sub): " + counter);
+                }
+                else
+                    counter = 0;
+            }
+
+
+        });
+
+
+
         //Holds the sender information and shows it on screen
         final EditText senderName = (EditText)findViewById(R.id.sender_name);
         senderInfo = senderName.getText().toString();
         //Updates the current status of the variables that depend on the information taken from the server
         update();
+        if (!deviceConnected) {
+            onClickStart();
+        }
 
         //Buttons indicate which currency to be send to the kumbara
         send_tl = (Button)findViewById(R.id.action_tl);
@@ -156,8 +235,9 @@ public class MainActivity extends AppCompatActivity
                                     }
         );
 
-        RestAdapter radapter=new RestAdapter.Builder().setEndpoint(url).build();
-        final MInterface restInt = radapter.create(MInterface.class);
+
+
+
 
         //Send button: when pressed sends the specified amount to the specified Kumbara
         send = (ImageButton)findViewById(R.id.send);
@@ -165,6 +245,7 @@ public class MainActivity extends AppCompatActivity
         {
             public void onClick(View v)
             {
+
 
                 String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
                 String formattedAmountToSend = totalAmountFormatter[0];
@@ -174,24 +255,14 @@ public class MainActivity extends AppCompatActivity
 
                 int currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
                 currentTotalTLAmount = Integer.toString(currentTotal);
-
-                restInt.setFields("TL", formattedAmountToSend, currentTotalTLAmount , totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                restInt.setFields("TL", formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
                     @Override
-                    public void success(Integer getJSON, Response response)
-                    {
-                        update();
-                        Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
+                    public void success(Integer getJSON, Response response) {
 
-                        if(!deviceConnected) {
-                            onClickStart();
-                        }
-                        onClickSend();
-                        Log.i(TAGB, "info sending sueccessful");
-                        counter = 0;
                     }
+
                     @Override
-                    public void failure(RetrofitError error)
-                    {
+                    public void failure(RetrofitError error) {
                         String cause = error.getCause().toString();
                         String err = error.getMessage();
                         Log.e(TAG, "Thingspeak send request failed. " + cause);
@@ -199,13 +270,20 @@ public class MainActivity extends AppCompatActivity
                 });
 
 
+                update();
+                Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
+
+                if(deviceConnected) {
+                    onClickSend();
+                    Log.i(TAGB, "info sending sueccessful");
+                }
+                counter = 0;
 
                 Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
                 amountToSend.setText(base_int + " ₺");
 
                 Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
-                AlertDialog.Builder transaction_success = new AlertDialog.Builder(MainActivity.this);
-                transaction_success.setMessage("Money is sent!");
+                Toast.makeText(getApplicationContext(),"Para gönderildi",Toast.LENGTH_SHORT).show();
 
             }
         });
@@ -384,8 +462,7 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-
-
+    //---Bluetooth related methods---
     //Bluetooth initiation method
     public boolean BTinit()
     {
@@ -423,6 +500,7 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         }
+        Toast.makeText(getApplicationContext(),"Cihaz bulunamadı",Toast.LENGTH_LONG).show();
         return found;
     }
 
