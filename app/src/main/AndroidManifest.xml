@@ -21,8 +21,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SendBES" />
-        <activity android:name=".SendG" />
         <activity android:name=".ShowKumbaraInfo"></activity>
     </application>
 
