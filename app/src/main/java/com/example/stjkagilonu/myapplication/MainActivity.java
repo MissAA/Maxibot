@@ -3,12 +3,10 @@ package com.example.stjkagilonu.myapplication;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 
 import android.os.Handler;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -41,18 +39,28 @@ public class MainActivity extends AppCompatActivity
     private static final String TAGB = "Bluetooth";
     //Server that stores the information
     public static final String url = "https://api.thingspeak.com";
+    private int operationCounter = 0;
 
     //Information regarding to Kumbara are stored in the following fields. The info will be taken from the server
     String currentTotalTLAmount, lastCallTimeInfo, lastCallAmountInfo, senderInfo, totalSumBES, totalSumG, lastCallType;
 
     //Necessary elements for increasing/decreasing the amount. Addition/subtraction operations cycle through the array
-    int counter = 0;
-    int base_int = 20; //Starting amount of the send-TL operation
-    int max_int = 200; //Maximum amount that can be send via TL transaction
-    private int amountOrder[] = {20, 50, 100, 200};
+    int counter_tl = 0;
+    int base_int_tl = 20; //Starting amount of the send-TL operation
+    int max_int_tl = 200; //Maximum amount that can be send via TL transaction
+    private int amountOrder_tl[] = {base_int_tl, 50, 100, max_int_tl};
+    //BES
+    int base_int_bes = 150; //Starting amount of the send-BES operation
+    int bes_increaseAmount = 50; //Operations on the amount to be send will be made accordingly
+    //Gold
+    int counter_g;
+    double base_int_g = 0.5;
+    double max_int_g = 100;
+    private double amountOrder_gold[] = {base_int_g, 1, 2.5, 5, 10, 20, 50, max_int_g};
+
 
     //Bluetooth connection elements
-    protected final String DEVICE_NAME="HTC One Mini";
+    protected final String DEVICE_NAME="maxibot";
     protected final UUID PORT_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");//Serial Port Service ID
     protected BluetoothDevice device;
     protected BluetoothSocket socket;
@@ -77,9 +85,53 @@ public class MainActivity extends AppCompatActivity
         final ImageButton send,add,subtract;
         Button send_tl, send_bes, send_g;
 
+        //Buttons indicate which currency to be send to the kumbara
+        send_tl = (Button)findViewById(R.id.action_tl);
+        send_tl.setOnClickListener(new View.OnClickListener()
+                                   {
+                                       public void onClick(View v)
+                                       {
+                                          operationCounter = 0;
+                                           Log.i(TAG, "Operation counter: " + operationCounter);
+                                       }
+                                   }
+        );
+        send_bes = (Button)findViewById(R.id.action_bes);
+        send_bes.setOnClickListener(new View.OnClickListener()
+                                    {
+                                        public void onClick(View v)
+                                        {
+                                            operationCounter = 1;
+                                            Log.i(TAG, "Operation counter: " + operationCounter);
+                                        }
+                                    }
+        );
+        send_g = (Button)findViewById(R.id.action_g);
+        send_g.setOnClickListener(new View.OnClickListener()
+                                  {
+                                      public void onClick(View v)
+                                      {
+                                          operationCounter = 2;
+                                          Log.i(TAG, "Operation counter: " + operationCounter);
+                                      }
+                                  }
+        );
+
         //Shows the amount to be send to the kumbara
         final TextView amountToSend = (TextView)findViewById(R.id.amountDisplay);
-        amountToSend.setText(base_int + " ₺");
+        Log.i(TAG, "Operation counter: " + operationCounter);
+
+        switch (operationCounter) {
+            case 0: amountToSend.setText(base_int_tl + " ₺");
+            case 1: amountToSend.setText(base_int_bes + " ₺");
+            case 2: amountToSend.setText(base_int_g + " GR");
+        }
+
+        update();
+
+        if (!deviceConnected) {
+            onClickStart();
+        }
 
         RestAdapter radapter=new RestAdapter.Builder().setEndpoint(url).build();
         final MInterface restInt = radapter.create(MInterface.class);
@@ -89,14 +141,23 @@ public class MainActivity extends AppCompatActivity
             public void onSwipeTop() //To send
             {
                 String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
-                String formattedAmountToSend = totalAmountFormatter[0];
+                String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
 
                 Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
                 Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
 
-                int currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
-                currentTotalTLAmount = Integer.toString(currentTotal);
-                restInt.setFields("TL", formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                int currentTotal;
+                double currentTotal_g;
+
+                switch (operationCounter) {
+                    case 0: currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
+                            currentTotalTLAmount = Integer.toString(currentTotal);
+                    case 1: currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
+                            totalSumBES = Integer.toString(currentTotal);
+                    case 2: currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
+                            totalSumG = Double.toString(currentTotal_g);
+                }
+                restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
                     @Override
                     public void success(Integer getJSON, Response response) {
 
@@ -118,85 +179,67 @@ public class MainActivity extends AppCompatActivity
                     onClickSend();
                     Log.i(TAGB, "info sending sueccessful");
                 }
-                counter = 0;
+                switch (operationCounter) {
+                    case 0: counter_tl = 0;
+                            Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                            amountToSend.setText(base_int_tl + " ₺");
 
-                Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
-                amountToSend.setText(base_int + " ₺");
+                    case 1: Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                            amountToSend.setText(base_int_bes + " ₺");
+
+                    case 2: counter_g = 0;
+                            Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                            amountToSend.setText(base_int_g + " GR");
+                }
 
                 Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
                 Toast.makeText(getApplicationContext(),"Para gönderildi",Toast.LENGTH_SHORT).show();
             }
             public void onSwipeRight() //To increase the amount to be sent
             {
-                if(!amountToSend.getText().toString().equals(max_int + " ₺"))
-                {
-                    counter++;
+                String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
 
-                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter) + " ₺");
+                if(!amountToSend.getText().toString().equals(max_int_tl + " " + totalAmountFormatter[1]) || !amountToSend.getText().toString().equals(max_int_g + " GR"))
+                {
+                    counter_tl++;
+                    counter_g++;
+                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
                     Log.i(TAG, "Add button pressed");
                 }
                 else
-                    counter = 3;
+                {
+                    counter_tl = amountOrder_tl.length-1;
+                    counter_g = amountOrder_gold.length-1;
+                }
             }
             public void onSwipeLeft() //To increase the amount to be sent
             {
-                if(!amountToSend.getText().toString().equals(base_int + " ₺"))
+                String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
+
+                if(!amountToSend.getText().toString().equals(base_int_tl + " ₺") || !amountToSend.getText().toString().equals(base_int_g + " GR"))
                 {
-                    counter--;
-                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter) + " ₺");
+                    counter_tl--;
+                    counter_g--;
+                    amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
                     Log.i(TAG, "Subtract button pressed");
-                    Log.i(TAG, "Counter (end of sub): " + counter);
                 }
                 else
-                    counter = 0;
+                {
+                    counter_tl = 0;
+                    counter_g = 0;
+                }
             }
 
 
         });
 
-
-
         //Holds the sender information and shows it on screen
         final EditText senderName = (EditText)findViewById(R.id.sender_name);
         senderInfo = senderName.getText().toString();
         //Updates the current status of the variables that depend on the information taken from the server
-        update();
-        if (!deviceConnected) {
-            onClickStart();
-        }
 
-        //Buttons indicate which currency to be send to the kumbara
-        send_tl = (Button)findViewById(R.id.action_tl);
-        send_tl.setOnClickListener(new View.OnClickListener()
-                                   {
-                                       public void onClick(View v)
-                                       {
-                                           mainActivity(v);
-                                       }
-                                   }
-        );
-        send_bes = (Button)findViewById(R.id.action_bes);
-        send_bes.setOnClickListener(new View.OnClickListener()
-                                    {
-                                        public void onClick(View v)
-                                        {
-                                            besActivity(v);
-                                        }
-                                    }
-        );
-        send_g = (Button)findViewById(R.id.action_g);
-        send_g.setOnClickListener(new View.OnClickListener()
-                                  {
-                                      public void onClick(View v)
-                                      {
-                                         goldActivity(v);
-                                      }
-                                  }
-        );
-
-        Log.i(TAG, "Amount to send: " + amountToSend.getText().toString());
-
-        //Add button increases the amount to be send by one per click.
+        //---Currently unused. Swipe motion is used to indicate the amount---//
+        /*//Add button increases the amount to be send by one per click.
         add = (ImageButton)findViewById(R.id.addition);
         add.setOnClickListener(new View.OnClickListener()
                                {
@@ -233,20 +276,15 @@ public class MainActivity extends AppCompatActivity
                                                 counter = 0;
                                         }
                                     }
-        );
+        );*/
 
-
-
-
-
-        //Send button: when pressed sends the specified amount to the specified Kumbara
+        //Send button: when pressed sends the specified amount to the specified Kumbara.
+        //--!-This can be used as an alternative to swipeUp motion-!-
         send = (ImageButton)findViewById(R.id.send);
         send.setOnClickListener( new View.OnClickListener()
         {
             public void onClick(View v)
             {
-
-
                 String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
                 String formattedAmountToSend = totalAmountFormatter[0];
 
@@ -255,7 +293,7 @@ public class MainActivity extends AppCompatActivity
 
                 int currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
                 currentTotalTLAmount = Integer.toString(currentTotal);
-                restInt.setFields("TL", formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
                     @Override
                     public void success(Integer getJSON, Response response) {
 
@@ -277,17 +315,24 @@ public class MainActivity extends AppCompatActivity
                     onClickSend();
                     Log.i(TAGB, "info sending sueccessful");
                 }
-                counter = 0;
+                switch (operationCounter) {
+                    case 0: counter_tl = 0;
+                        Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                        amountToSend.setText(base_int_tl + " ₺");
 
-                Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
-                amountToSend.setText(base_int + " ₺");
+                    case 1: Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                        amountToSend.setText(base_int_bes + " ₺");
+
+                    case 2: counter_g = 0;
+                        Log.i(TAG, "Send amount: " + amountToSend.getText().toString());
+                        amountToSend.setText(base_int_g + " GR");
+                }
 
                 Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
                 Toast.makeText(getApplicationContext(),"Para gönderildi",Toast.LENGTH_SHORT).show();
 
             }
         });
-
     }
 
     @Override
@@ -298,7 +343,7 @@ public class MainActivity extends AppCompatActivity
         super.onPause();
     }
 
-    //--Button methods to change activity--
+   /* //--Button methods to change activity--
     //Starts the MainActivity, sending currency change to TL
     public void mainActivity(View view)
     {
@@ -326,41 +371,41 @@ public class MainActivity extends AppCompatActivity
         startActivity(intent);
 
     }
-    //-----
+    //-----*/
 
     //Changes the amount to be sent. It takes the current state of the amount and the desired addition amount as arguments and returns the changed amount as a String.
-    private String changeAmountToBeSent(String _currentAmount, int counter)
+    private String changeAmountToBeSent(String _currentAmount, int counter_tl, int counter_g, int operation)
     {
-        Log.i(TAG, "counter before operation: " + counter);
         //Current amount that is displayed
         String amountFormatter[] = _currentAmount.split(" ");
-        int currentAmount = Integer.parseInt(amountFormatter[0]);
-        Log.i(TAG, "currentAmount: " + currentAmount);
-        if(currentAmount >= base_int && currentAmount <= max_int)
+        double currentAmount = Double.parseDouble(amountFormatter[0]);
+
+        switch(operationCounter)
         {
-            currentAmount = amountOrder[counter];
-            Log.i(TAG, "currentAmount after operation: " + Integer.toString(currentAmount));
+            case 0: if(currentAmount >= base_int_tl && currentAmount <= max_int_tl)
+                {
+                    currentAmount = amountOrder_tl[counter_tl];
+                    Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
+                }
+            case 1:  if(currentAmount > base_int_bes)
+                {
+
+                    currentAmount += (bes_increaseAmount * operation);
+                    Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
+                }
+                else if(currentAmount == base_int_bes && operation !=-1)
+                {
+                    currentAmount += (bes_increaseAmount * operation);
+                    Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
+                }
+            case 2: if(currentAmount >= base_int_g && currentAmount <= max_int_g)
+                {
+                    currentAmount = amountOrder_gold[counter_g];
+                    Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
+                }
         }
 
-        //If the amount does not fit the boundaries, an error message is shown.
-        else
-        {
-            AlertDialog.Builder errorMessage_invalidAmount = new AlertDialog.Builder(MainActivity.this);
-            errorMessage_invalidAmount.setMessage("Invalid amount");
-            errorMessage_invalidAmount.setCancelable(false);
-            errorMessage_invalidAmount.setPositiveButton("Ok", new DialogInterface.OnClickListener()
-                    {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which)
-                        {
-                            dialog.dismiss();
-                        }
-                    }
-            );
-            return Integer.toString(currentAmount);
-        }
-        Log.i(TAG, "counter after operation: " + counter);
-        return Integer.toString(currentAmount);
+        return Double.toString(currentAmount);
     }
 
     public String formatDate(String date[])
