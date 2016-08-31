@@ -1,6 +1,8 @@
 package com.example.stjkagilonu.myapplication;
 
 
+import android.telecom.Call;
+
 import java.util.List;
 
 import retrofit.Callback;
@@ -15,7 +17,7 @@ import retrofit.http.Query;
 public interface MInterface
 {
     @GET("/channels/124871/feeds.json?results=1")
-    List<Feed> getFeed();
+    void getFeed(Callback<Model> user);
 
     //&field2={moneyToSend}&field3={totalMoneyTL}&field4={totalMoneyBES}&field5={totalMoneyG}
     @GET("/update?api_key=J38US1KWBYLK66ZR&field1=TL")
