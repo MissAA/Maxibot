@@ -1,9 +1,12 @@
 package com.example.stjkagilonu.myapplication;
 
+import android.animation.AnimatorInflater;
+import android.animation.AnimatorSet;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 
 import android.os.Handler;
@@ -14,12 +17,18 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,9 +42,7 @@ import retrofit.RestAdapter;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
 
-
-public class MainActivity extends AppCompatActivity
-{
+public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Kumbara-TL";
     private static final String TAGB = "Bluetooth";
     //Server that stores the information
@@ -59,20 +66,31 @@ public class MainActivity extends AppCompatActivity
     double max_int_g = 100;
     private double amountOrder_gold[] = {base_int_g, 1, 2.5, 5, 10, 20, 50, max_int_g};
 
-    RestAdapter radapter=new RestAdapter.Builder().setEndpoint(url).build();
+    RestAdapter radapter = new RestAdapter.Builder().setEndpoint(url).build();
     final MInterface restInt = radapter.create(MInterface.class);
     boolean sendEnabled = false;
 
+    ImageView money;
+    AnimatorSet moveUp;
+    Animation fade, scale, blink;
+    AnimatorSet moneySendingAnim;
+
+
     //Bluetooth connection elements
-    protected final String DEVICE_NAME="maxibot";
+    protected final String DEVICE_NAME = "maxibot";
     protected final UUID PORT_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");//Serial Port Service ID
     protected BluetoothDevice device;
     protected BluetoothSocket socket;
     protected OutputStream outputStream;
     protected InputStream inputStream;
-    boolean deviceConnected=false;
+    boolean deviceConnected = false;
     byte buffer[];
     boolean stopThread;
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) //this method comes from the Activity superclass
@@ -85,11 +103,21 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        moveUp = (AnimatorSet) AnimatorInflater.loadAnimator(this, R.animator.money_animation);
+
+
+        money = (ImageView) findViewById(R.id.currentAmount_BG);
+        moveUp.setTarget(money);
+        fade = AnimationUtils.loadAnimation(this, R.anim.money_disappear);
+        //moveUp = AnimationUtils.loadAnimation(this, R.anim.money_move_up);
+        scale = AnimationUtils.loadAnimation(this, R.anim.money_scale);
+        blink = AnimationUtils.loadAnimation(this, R.anim.blink);
+
 
         //Displayed buttons
         Button send_tl, send_bes, send_g;
 
-        final EditText sender = (EditText)findViewById(R.id.sender_name);
+        final EditText sender = (EditText) findViewById(R.id.sender_name);
         sender.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
@@ -104,47 +132,41 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        final TextView amountToSend = (TextView)findViewById(R.id.amountDisplay);
+        final TextView amountToSend = (TextView) findViewById(R.id.amountDisplay);
         Log.i(TAG, "Operation counter: " + operationCounter);
         amountToSend.setText(base_int_tl + " ₺");
 
         update(amountToSend);
 
         //Buttons indicate which currency to be send to the kumbara
-        send_tl = (Button)findViewById(R.id.action_tl);
-        send_tl.setOnClickListener(new View.OnClickListener()
-                                   {
-                                       public void onClick(View v)
-                                       {
-                                          operationCounter = 0;
+        send_tl = (Button) findViewById(R.id.action_tl);
+        send_tl.setOnClickListener(new View.OnClickListener() {
+                                       public void onClick(View v) {
+                                           operationCounter = 0;
                                            counter_tl = 0;
-                                           counter_g=0;
+                                           counter_g = 0;
                                            amountToSend.setText(base_int_tl + " ₺");
                                            Log.i(TAG, "Operation counter: " + operationCounter);
                                        }
                                    }
         );
-        send_bes = (Button)findViewById(R.id.action_bes);
-        send_bes.setOnClickListener(new View.OnClickListener()
-                                    {
-                                        public void onClick(View v)
-                                        {
+        send_bes = (Button) findViewById(R.id.action_bes);
+        send_bes.setOnClickListener(new View.OnClickListener() {
+                                        public void onClick(View v) {
                                             operationCounter = 1;
                                             counter_tl = 0;
-                                            counter_g=0;
+                                            counter_g = 0;
                                             amountToSend.setText(base_int_bes + " ₺");
                                             Log.i(TAG, "Operation counter: " + operationCounter);
                                         }
                                     }
         );
-        send_g = (Button)findViewById(R.id.action_g);
-        send_g.setOnClickListener(new View.OnClickListener()
-                                  {
-                                      public void onClick(View v)
-                                      {
+        send_g = (Button) findViewById(R.id.action_g);
+        send_g.setOnClickListener(new View.OnClickListener() {
+                                      public void onClick(View v) {
                                           operationCounter = 2;
                                           counter_tl = 0;
-                                          counter_g=0;
+                                          counter_g = 0;
                                           amountToSend.setText(base_int_g + " GR");
                                           Log.i(TAG, "Operation counter: " + operationCounter);
                                       }
@@ -155,11 +177,13 @@ public class MainActivity extends AppCompatActivity
             onClickStart();
         }
 
-        final ImageView background_displayedAmount = (ImageView)findViewById(R.id.currentAmount_BG);
+        final ImageView background_displayedAmount = (ImageView) findViewById(R.id.currentAmount_BG);
         if (background_displayedAmount != null) {
             background_displayedAmount.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 public void onSwipeTop() //To send
                 {
+                    sendEnabled = true;
+
                     Log.i(TAG, "Operation counter: " + operationCounter);
                     Log.i(TAG, "Sender name: " + senderInfo);
 
@@ -174,20 +198,26 @@ public class MainActivity extends AppCompatActivity
                     double currentTotal_g;
 
                     switch (operationCounter) {
-                        case 0: currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
-                                currentTotalTLAmount = Integer.toString(currentTotal);
-                                break;
-                        case 1: currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
-                                totalSumBES = Integer.toString(currentTotal);
-                                break;
-                        case 2: currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
-                                totalSumG = Double.toString(currentTotal_g);
-                                break;
+                        case 0:
+                            currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
+                            currentTotalTLAmount = Integer.toString(currentTotal);
+                            break;
+                        case 1:
+                            currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
+                            totalSumBES = Integer.toString(currentTotal);
+                            break;
+                        case 2:
+                            currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
+                            totalSumG = Double.toString(currentTotal_g);
+                            break;
                     }
+                    moveUp.start();
                     restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
                         @Override
                         public void success(Integer getJSON, Response response) {
                             sendEnabled = true;
+                            Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
+
                             update(amountToSend);
                         }
 
@@ -200,36 +230,32 @@ public class MainActivity extends AppCompatActivity
 
                     Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
                 }
+
                 public void onSwipeRight() //To increase the amount to be sent
                 {
                     String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
 
-                    if(!amountToSend.getText().toString().equals(max_int_tl + " " + totalAmountFormatter[1]) && !amountToSend.getText().toString().equals(max_int_g + " GR"))
-                    {
+                    if (!amountToSend.getText().toString().equals(max_int_tl + " " + totalAmountFormatter[1]) && !amountToSend.getText().toString().equals(max_int_g + " GR")) {
                         counter_tl++;
                         counter_g++;
                         amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
                         Log.i(TAG, "Add button pressed");
-                    }
-                    else
-                    {
-                        counter_tl = amountOrder_tl.length-1;
-                        counter_g = amountOrder_gold.length-1;
+                    } else {
+                        counter_tl = amountOrder_tl.length - 1;
+                        counter_g = amountOrder_gold.length - 1;
                     }
                 }
+
                 public void onSwipeLeft() //To increase the amount to be sent
                 {
                     String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
 
-                    if(!amountToSend.getText().toString().equals(base_int_tl + " ₺") && !amountToSend.getText().toString().equals(base_int_g + " GR"))
-                    {
+                    if (!amountToSend.getText().toString().equals(base_int_tl + " ₺") && !amountToSend.getText().toString().equals(base_int_g + " GR")) {
                         counter_tl--;
                         counter_g--;
                         amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
                         Log.i(TAG, "Subtract button pressed");
-                    }
-                    else
-                    {
+                    } else {
                         counter_tl = 0;
                         counter_g = 0;
                     }
@@ -237,20 +263,21 @@ public class MainActivity extends AppCompatActivity
             });
         }
 
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
     @Override
-    public void onPause()
-    {
-        if(deviceConnected)
+    public void onPause() {
+        if (deviceConnected)
             onClickStop(); //Stops the bluetooth connection
         super.onPause();
     }
 
 
     //Changes the amount to be sent. It takes the current state of the amount and the desired addition amount as arguments and returns the changed amount as a String.
-    private String changeAmountToBeSent(String _currentAmount, int counter_tl, int counter_g, int operation)
-    {
+    private String changeAmountToBeSent(String _currentAmount, int counter_tl, int counter_g, int operation) {
         //Current amount that is displayed
         String amountFormatter[] = _currentAmount.split(" ");
 
@@ -259,31 +286,28 @@ public class MainActivity extends AppCompatActivity
 
         //Switches between products. Each products addition/subtraction method is different
         //0: TL, 1: BES, 2: Gold
-        switch(operationCounter)
-        {
-            case 0: currentAmount = Integer.parseInt(amountFormatter[0]);
-                if(currentAmount >= base_int_tl && currentAmount <= max_int_tl)
-                {
+        switch (operationCounter) {
+            case 0:
+                currentAmount = Integer.parseInt(amountFormatter[0]);
+                if (currentAmount >= base_int_tl && currentAmount <= max_int_tl) {
                     currentAmount = amountOrder_tl[counter_tl];
                     Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
                 }
                 return Integer.toString(currentAmount);
-            case 1:  currentAmount = Integer.parseInt(amountFormatter[0]);
-                if(currentAmount > base_int_bes)
-                {
+            case 1:
+                currentAmount = Integer.parseInt(amountFormatter[0]);
+                if (currentAmount > base_int_bes) {
 
                     currentAmount += (bes_increaseAmount * operation);
                     Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
-                }
-                else if(currentAmount == base_int_bes && operation !=-1)
-                {
+                } else if (currentAmount == base_int_bes && operation != -1) {
                     currentAmount += (bes_increaseAmount * operation);
                     Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
                 }
                 return Integer.toString(currentAmount);
-            case 2: currentAmount_g = Double.parseDouble(amountFormatter[0]);
-                if(currentAmount_g >= base_int_g && currentAmount_g <= max_int_g)
-                {
+            case 2:
+                currentAmount_g = Double.parseDouble(amountFormatter[0]);
+                if (currentAmount_g >= base_int_g && currentAmount_g <= max_int_g) {
                     currentAmount_g = amountOrder_gold[counter_g];
                     Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount_g));
                 }
@@ -293,8 +317,7 @@ public class MainActivity extends AppCompatActivity
         return " ";
     }
 
-    public String formatDate(String date[])
-    {
+    public String formatDate(String date[]) {
         String month, day, year;
         year = date[0];
         month = date[1];
@@ -303,8 +326,7 @@ public class MainActivity extends AppCompatActivity
         return day + "/" + month + "/" + year;
     }
 
-    public String formatTime(String time[])
-    {
+    public String formatTime(String time[]) {
         String hour, minute;
         int time_GMT3 = Integer.parseInt(time[0]) + 3;
         hour = Integer.toString(time_GMT3);
@@ -314,8 +336,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu)
-    {
+    public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
@@ -335,17 +356,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     //Updates the Thinkspeak channel
-    public void update(TextView amountToSend)
-    {
+    public void update(TextView amountToSend) {
+
 
         final MInterface restInt = radapter.create(MInterface.class);
         final TextView _amountToSend = amountToSend;
         //Calls for the server and gets the info about appropriate sections
-        restInt.getFeed(new Callback<Model>()
-        {
+        restInt.getFeed(new Callback<Model>() {
             @Override
-            public void success(Model model, Response response)
-            {
+            public void success(Model model, Response response) {
                 List<Feed> feeds = model.getFeeds();
                 Feed feed = feeds.get(0);
 
@@ -384,37 +403,45 @@ public class MainActivity extends AppCompatActivity
                 Log.i(TAG, "Last call time: " + lastCallTimeInfo);
                 Log.i(TAG, "Updated");
 
-                if(sendEnabled)
-                {
-                    if(deviceConnected) {
+                if (sendEnabled) {
+                    moveUp.start();
+                    //money.startAnimation(moneySendingAnim);
+                    //money.startAnimation(moveUp);
+
+                    if (deviceConnected) {
                         onClickSend();
-                        Toast.makeText(getApplicationContext(),"Para gönderildi",Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), "Para kumbaraya gönderildi", Toast.LENGTH_SHORT).show();
                         Log.i(TAGB, "info sending sueccessful");
                     }
                     switch (operationCounter) {
-                        case 0: counter_tl = 0;
+                        case 0:
+                            counter_tl = 0;
                             Log.i(TAG, "Send amount: " + _amountToSend.getText().toString());
                             _amountToSend.setText(base_int_tl + " ₺");
                             sendEnabled = false;
                             break;
 
-                        case 1: Log.i(TAG, "Send amount: " + _amountToSend.getText().toString());
+                        case 1:
+                            Log.i(TAG, "Send amount: " + _amountToSend.getText().toString());
                             _amountToSend.setText(base_int_bes + " ₺");
                             sendEnabled = false;
                             break;
 
-                        case 2: counter_g = 0;
+                        case 2:
+                            counter_g = 0;
                             Log.i(TAG, "Send amount: " + _amountToSend.getText().toString());
                             _amountToSend.setText(base_int_g + " GR");
                             sendEnabled = false;
                             break;
                     }
+
                 }
 
 
-                Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo  + " " + lastCallTimeInfo);
+                Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
 
             }
+
             @Override
             public void failure(RetrofitError error) {
                 String cause = error.getCause().toString();
@@ -426,15 +453,13 @@ public class MainActivity extends AppCompatActivity
 
     //---Bluetooth related methods---
     //Bluetooth initiation method
-    public boolean BTinit()
-    {
-        boolean found=false;
-        BluetoothAdapter bluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
+    public boolean BTinit() {
+        boolean found = false;
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
-            Toast.makeText(getApplicationContext(),"Device doesnt Support Bluetooth",Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Device doesnt Support Bluetooth", Toast.LENGTH_SHORT).show();
         }
-        if(!bluetoothAdapter.isEnabled())
-        {
+        if (!bluetoothAdapter.isEnabled()) {
             Intent enableAdapter = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableAdapter, 0);
             try {
@@ -444,49 +469,42 @@ public class MainActivity extends AppCompatActivity
             }
         }
         Set<BluetoothDevice> bondedDevices = bluetoothAdapter.getBondedDevices();
-        if(bondedDevices.isEmpty())
-        {
-            Toast.makeText(getApplicationContext(),"Please Pair the Device first",Toast.LENGTH_SHORT).show();
-        }
-        else
-        {
-            for (BluetoothDevice iterator : bondedDevices)
-            {
-                if(iterator.getName().equals(DEVICE_NAME))
-                {
+        if (bondedDevices.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "Please Pair the Device first", Toast.LENGTH_SHORT).show();
+        } else {
+            for (BluetoothDevice iterator : bondedDevices) {
+                if (iterator.getName().equals(DEVICE_NAME)) {
                     Log.i(TAGB, "matching paired devices");
-                    device=iterator;
+                    device = iterator;
                     Log.i(TAGB, "device: " + device.getName());
-                    found=true;
+                    found = true;
                     return found;
                 }
             }
         }
-        Toast.makeText(getApplicationContext(),"Cihaz bulunamadı",Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "Cihaz bulunamadı", Toast.LENGTH_LONG).show();
         return found;
     }
 
     //Bluetooth connection establishment
-    public boolean BTconnect()
-    {
-        boolean connected=true;
+    public boolean BTconnect() {
+        boolean connected = true;
         try {
             socket = device.createRfcommSocketToServiceRecord(PORT_UUID);
             socket.connect();
         } catch (IOException e) {
 
             e.printStackTrace();
-            connected=false;
+            connected = false;
         }
-        if(connected)
-        {
+        if (connected) {
             try {
-                outputStream=socket.getOutputStream();
+                outputStream = socket.getOutputStream();
             } catch (IOException e) {
                 e.printStackTrace();
             }
             try {
-                inputStream=socket.getInputStream();
+                inputStream = socket.getInputStream();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -498,45 +516,34 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void onClickStart() {
-        if(BTinit())
-        {
-            if(BTconnect())
-            {
-                deviceConnected=true;
+        if (BTinit()) {
+            if (BTconnect()) {
+                deviceConnected = true;
                 beginListenForData();
             }
         }
     }
 
-    void beginListenForData()
-    {
+    void beginListenForData() {
         final Handler handler = new Handler();
         stopThread = false;
         buffer = new byte[1024];
-        Thread thread  = new Thread(new Runnable()
-        {
-            public void run()
-            {
-                while(!Thread.currentThread().isInterrupted() && !stopThread)
-                {
-                    try
-                    {
+        Thread thread = new Thread(new Runnable() {
+            public void run() {
+                while (!Thread.currentThread().isInterrupted() && !stopThread) {
+                    try {
                         int byteCount = inputStream.available();
-                        if(byteCount > 0)
-                        {
+                        if (byteCount > 0) {
                             byte[] rawBytes = new byte[byteCount];
                             inputStream.read(rawBytes);
-                            final String string=new String(rawBytes,"UTF-8");
+                            final String string = new String(rawBytes, "UTF-8");
                             handler.post(new Runnable() {
-                                public void run()
-                                {
+                                public void run() {
 
                                 }
                             });
                         }
-                    }
-                    catch (IOException ex)
-                    {
+                    } catch (IOException ex) {
                         stopThread = true;
                     }
                 }
@@ -545,9 +552,10 @@ public class MainActivity extends AppCompatActivity
 
         thread.start();
     }
+
     public void onClickSend() {
-        String string = lastCallType + " " + lastCallAmountInfo + " " + currentTotalTLAmount + " " +
-                        totalSumBES + "-BES" + " " + totalSumG + " " + senderInfo + " ";
+        String string = operationCounter + " " + lastCallType + " " + lastCallAmountInfo + " " + currentTotalTLAmount + " " +
+                totalSumBES + " " + totalSumG + " " + senderInfo + " ";
 
         Log.i(TAGB, "info sent: " + string);
         try {
@@ -557,13 +565,13 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    public void onClickStop(){
+    public void onClickStop() {
         try {
             stopThread = true;
             outputStream.close();
             inputStream.close();
             socket.close();
-            deviceConnected=false;
+            deviceConnected = false;
             Log.i(TAGB, "connection closed");
         } catch (IOException e) {
             e.printStackTrace();
@@ -572,5 +580,44 @@ public class MainActivity extends AppCompatActivity
     }
 
 
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client.connect();
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Main Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.stjkagilonu.myapplication/http/host/path")
+        );
+        AppIndex.AppIndexApi.start(client, viewAction);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Main Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.stjkagilonu.myapplication/http/host/path")
+        );
+        AppIndex.AppIndexApi.end(client, viewAction);
+        client.disconnect();
+    }
 }
 
