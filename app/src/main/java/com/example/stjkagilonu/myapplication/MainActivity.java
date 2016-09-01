@@ -71,10 +71,8 @@ public class MainActivity extends AppCompatActivity {
     boolean sendEnabled = false;
 
     ImageView money;
-    AnimatorSet moveUp;
-    Animation fade, scale, blink;
-    AnimatorSet moneySendingAnim;
-
+   // AnimatorSet moveUp;
+    Animation moveUp_text, moveUp;
 
     //Bluetooth connection elements
     protected final String DEVICE_NAME = "maxibot";
@@ -103,15 +101,10 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        moveUp = (AnimatorSet) AnimatorInflater.loadAnimator(this, R.animator.money_animation);
-
-
         money = (ImageView) findViewById(R.id.currentAmount_BG);
-        moveUp.setTarget(money);
-        fade = AnimationUtils.loadAnimation(this, R.anim.money_disappear);
-        //moveUp = AnimationUtils.loadAnimation(this, R.anim.money_move_up);
-        scale = AnimationUtils.loadAnimation(this, R.anim.money_scale);
-        blink = AnimationUtils.loadAnimation(this, R.anim.blink);
+
+        moveUp = AnimationUtils.loadAnimation(this, R.anim.money_move_up);
+        moveUp_text = AnimationUtils.loadAnimation(this, R.anim.money_text_move_up);
 
 
         //Displayed buttons
@@ -211,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
                             totalSumG = Double.toString(currentTotal_g);
                             break;
                     }
-                    moveUp.start();
+
                     restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
                         @Override
                         public void success(Integer getJSON, Response response) {
@@ -356,7 +349,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //Updates the Thinkspeak channel
-    public void update(TextView amountToSend) {
+    public void update(final TextView amountToSend) {
 
 
         final MInterface restInt = radapter.create(MInterface.class);
@@ -404,9 +397,8 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Updated");
 
                 if (sendEnabled) {
-                    moveUp.start();
-                    //money.startAnimation(moneySendingAnim);
-                    //money.startAnimation(moveUp);
+                    money.startAnimation(moveUp);
+                    amountToSend.startAnimation(moveUp_text);
 
                     if (deviceConnected) {
                         onClickSend();

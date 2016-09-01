@@ -5,7 +5,8 @@
 
     <translate
         android:fromYDelta="0%p"
-        android:toYDelta="-50%p"
+        android:toXDelta="-2%p"
+        android:toYDelta="-55%p"
         android:duration="2500" />
 
     <scale xmlns:android="http://schemas.android.com/apk/res/android"
