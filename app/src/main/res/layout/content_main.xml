@@ -14,6 +14,8 @@
     <ImageButton
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
         android:text="Gönder"
         android:id="@+id/send"
         android:layout_marginTop="190dp"
@@ -33,6 +35,7 @@
         android:layout_below="@+id/header_callAmountInfo"
         android:layout_centerInParent="true"
         android:layout_marginTop="0dp"
+        android:layout_marginBottom="40dp"
         android:layout_above="@+id/sender_name" />
 
     <TextView
@@ -40,7 +43,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_alignTop="@id/currentAmount_BG"
-        android:layout_marginTop="100dp"
+        android:layout_marginTop="80dp"
         android:layout_marginLeft="20dp"
         android:text="20 ₺"
         android:textColor="#FFFFFF"
@@ -53,6 +56,7 @@
     <ImageButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginRight="5dp"
         android:id="@+id/addition"
         android:src="@drawable/sag_ok"
         android:background="@color/background"
@@ -63,6 +67,7 @@
     <ImageButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="5dp"
         android:id="@+id/subtraction"
         android:src="@drawable/sol_ok"
         android:background="@color/background"
@@ -70,103 +75,35 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text=""
-        android:id="@+id/header_kumbaraToplam"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text=""
-        android:id="@+id/display_kumbaraInfo"
-        android:layout_below="@+id/header_kumbaraToplam"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text=""
-        android:id="@+id/header_sonIslem"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/display_kumbaraInfo" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text=""
-        android:id="@+id/header_callTimeInfo"
-        android:layout_below="@+id/header_sonIslem"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text=""
-        android:id="@+id/header_callAmountInfo"
-        android:layout_below="@+id/header_callTimeInfo"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text=""
-        android:id="@+id/display_lastCallTime"
-        android:layout_alignTop="@+id/header_callTimeInfo"
-        android:layout_toRightOf="@+id/header_callTimeInfo"
-        android:layout_toEndOf="@+id/header_callTimeInfo" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text=""
-        android:id="@+id/display_lastCallAmount"
-        android:layout_alignTop="@+id/header_callAmountInfo"
-        android:layout_toRightOf="@+id/header_callAmountInfo"
-        android:layout_toEndOf="@+id/header_callAmountInfo" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="5dp"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="GÖNDER"
         android:id="@+id/send_writing"
         android:textStyle="bold"
         android:textSize="20dp"
-        android:textColor="#ffffff"
-        android:layout_alignBottom="@+id/send"
-        android:layout_alignLeft="@+id/buton"
-        android:layout_alignStart="@+id/buton" />
+        android:textColor="@color/background"
+        android:layout_alignBottom="@+id/send" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@color/buttonColor"
         android:layout_above="@+id/send_writing"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginBottom="45dp"
+        android:layout_marginBottom="30dp"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
         android:id="@+id/line" />
 
     <EditText
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
         android:hint="Gönderen"
         android:textSize="20dp"
         android:id="@+id/sender_name"
@@ -175,6 +112,7 @@
         android:layout_alignParentStart="true"
         android:layout_marginBottom="5dp"
         android:inputType="text"
+        android:background="@android:color/transparent"
         android:textAppearance="@color/buttonColor" />
 
     <Space

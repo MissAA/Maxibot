@@ -23,7 +23,9 @@ import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -75,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     boolean sendEnabled = false;
 
     ImageView money;
+    View selector;
    // AnimatorSet moveUp;
     Animation moveUp_text, moveUp;
 
@@ -144,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         money = (ImageView) findViewById(R.id.currentAmount_BG);
+        selector = (View)findViewById(R.id.line_indicate_product);
 
         moveUp = AnimationUtils.loadAnimation(this, R.anim.money_move_up);
         moveUp_text = AnimationUtils.loadAnimation(this, R.anim.money_text_move_up);
@@ -151,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
 
         //Displayed buttons
         Button send_tl, send_bes, send_g;
+        ImageButton send;
 
         final EditText sender = (EditText) findViewById(R.id.sender_name);
         sender.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -208,6 +213,15 @@ public class MainActivity extends AppCompatActivity {
                                   }
         );
 
+        send = (ImageButton)findViewById(R.id.send);
+        send.setOnClickListener(new View.OnClickListener() {
+                                      public void onClick(View v) {
+                                          send(amountToSend);
+                                      }
+                                  }
+        );
+
+
         if (!deviceConnected) {
             onClickStart();
         }
@@ -217,64 +231,7 @@ public class MainActivity extends AppCompatActivity {
             background_displayedAmount.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 public void onSwipeTop() //To send
                 {
-                    if(isNetworkAvailable()) {
-                        sendEnabled = true;
-
-                        Log.i(TAG, "Operation counter: " + operationCounter);
-                        Log.i(TAG, "Sender name: " + senderInfo);
-
-                        String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
-                        String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
-
-
-                        if (currentTotalTLAmount.equals(null) || totalSumBES.equals(null) || totalSumG.equals(null)) {
-                            currentTotalTLAmount = "0";
-                            totalSumBES = "0";
-                            totalSumG = "0";
-                        }
-
-                        Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
-                        Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
-
-                        int currentTotal;
-                        double currentTotal_g;
-
-                        switch (operationCounter) {
-                            case 0:
-                                currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
-                                currentTotalTLAmount = Integer.toString(currentTotal);
-                                break;
-                            case 1:
-                                currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
-                                totalSumBES = Integer.toString(currentTotal);
-                                break;
-                            case 2:
-                                currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
-                                totalSumG = Double.toString(currentTotal_g);
-                                break;
-                        }
-
-                        restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
-                            @Override
-                            public void success(Integer getJSON, Response response) {
-                                sendEnabled = true;
-                                Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
-
-                                update(amountToSend);
-                            }
-
-                            @Override
-                            public void failure(RetrofitError error) {
-                                String err = error.getMessage();
-                                Log.e(TAG, "Thingspeak send request failed. " + err);
-                            }
-                        });
-
-                        Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
-                    }
-                    else
-                        Toast.makeText(getApplicationContext(), "İnternet bağlantısı yok!", Toast.LENGTH_LONG).show();
-
+                    send(amountToSend);
                 }
 
                 public void onSwipeRight() //To increase the amount to be sent
@@ -504,6 +461,68 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    public void send(final TextView amountToSend)
+    {
+        if(isNetworkAvailable()) {
+            sendEnabled = true;
+
+            Log.i(TAG, "Operation counter: " + operationCounter);
+            Log.i(TAG, "Sender name: " + senderInfo);
+
+            String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
+            String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
+
+
+            if (currentTotalTLAmount.equals(null) || totalSumBES.equals(null) || totalSumG.equals(null)) {
+                currentTotalTLAmount = "0";
+                totalSumBES = "0";
+                totalSumG = "0";
+            }
+
+            Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
+            Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
+
+            int currentTotal;
+            double currentTotal_g;
+
+            switch (operationCounter) {
+                case 0:
+                    currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
+                    currentTotalTLAmount = Integer.toString(currentTotal);
+                    break;
+                case 1:
+                    currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
+                    totalSumBES = Integer.toString(currentTotal);
+                    break;
+                case 2:
+                    currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
+                    totalSumG = Double.toString(currentTotal_g);
+                    break;
+            }
+
+            restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                @Override
+                public void success(Integer getJSON, Response response) {
+                    sendEnabled = true;
+                    Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
+
+                    update(amountToSend);
+                }
+
+                @Override
+                public void failure(RetrofitError error) {
+                    String err = error.getMessage();
+                    Log.e(TAG, "Thingspeak send request failed. " + err);
+                }
+            });
+
+            Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
+        }
+        else
+            Toast.makeText(getApplicationContext(), "İnternet bağlantısı yok!", Toast.LENGTH_LONG).show();
+
+    }
+
     //---Bluetooth related methods---
     //Bluetooth initiation method
     public boolean BTinit() {
@@ -632,7 +651,15 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-
+    public void moveSelector(View view)
+    {
+        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) view.getLayoutParams();
+        layoutParams.leftMargin = X - _xDelta;
+        layoutParams.topMargin = Y - _yDelta;
+        layoutParams.rightMargin = -250;
+        layoutParams.bottomMargin = -250;
+        view.setLayoutParams(layoutParams);
+    }
 
 }
 
