@@ -1,11 +1,12 @@
 package com.example.stjkagilonu.myapplication;
 
-import android.animation.AnimatorInflater;
-import android.animation.AnimatorSet;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -26,9 +27,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.appindexing.Action;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,16 +41,20 @@ import retrofit.RetrofitError;
 import retrofit.client.Response;
 
 public class MainActivity extends AppCompatActivity {
+
+    //Log strings
     private static final String TAG = "Kumbara-TL";
     private static final String TAGB = "Bluetooth";
     //Server that stores the information
     public static final String url = "https://api.thingspeak.com";
+    //
     private int operationCounter = 0;
 
     //Information regarding to Kumbara are stored in the following fields. The info will be taken from the server
     String currentTotalTLAmount, lastCallTimeInfo, lastCallAmountInfo, lastSenderInfo, senderInfo, totalSumBES, totalSumG, lastCallType;
 
     //Necessary elements for increasing/decreasing the amount. Addition/subtraction operations cycle through the array
+    //TL
     int counter_tl = 0;
     int base_int_tl = 20; //Starting amount of the send-TL operation
     int max_int_tl = 200; //Maximum amount that can be send via TL transaction
@@ -66,8 +68,10 @@ public class MainActivity extends AppCompatActivity {
     double max_int_g = 100;
     private double amountOrder_gold[] = {base_int_g, 1, 2.5, 5, 10, 20, 50, max_int_g};
 
+    //Retrofit constants
     RestAdapter radapter = new RestAdapter.Builder().setEndpoint(url).build();
     final MInterface restInt = radapter.create(MInterface.class);
+    //Checking if the send button clicked
     boolean sendEnabled = false;
 
     ImageView money;
@@ -84,22 +88,60 @@ public class MainActivity extends AppCompatActivity {
     boolean deviceConnected = false;
     byte buffer[];
     boolean stopThread;
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) //this method comes from the Activity superclass
     {
 
         super.onCreate(savedInstanceState); //call for the previous saved state
-
         //Creating layout
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+    }
+
+    //This method checks if the device is connected to a network. It does not check if it really has an internet acces (if the connected
+    //network has an internet access)
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null;
+    }
+
+   /* @Override
+    public void run()
+    {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        if (activeNetworkInfo != null) {
+            try {
+                HttpURLConnection urlc = (HttpURLConnection)
+                        (new URL("http://clients3.google.com/generate_204")
+                                .openConnection());
+                urlc.setRequestProperty("User-Agent", "Android");
+                urlc.setRequestProperty("Connection", "close");
+                urlc.setConnectTimeout(1500);
+                urlc.connect();
+                hasInternetAccess = (urlc.getResponseCode() == 204 &&
+                        urlc.getContentLength() == 0);
+            } catch (IOException e) {
+                Log.e(TAG, "Error checking internet connection", e);
+            }
+        } else {
+            Log.d(TAG, "No network available!");
+            hasInternetAccess = false;
+        }
+    }
+*/
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
 
         money = (ImageView) findViewById(R.id.currentAmount_BG);
 
@@ -175,53 +217,64 @@ public class MainActivity extends AppCompatActivity {
             background_displayedAmount.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 public void onSwipeTop() //To send
                 {
-                    sendEnabled = true;
+                    if(isNetworkAvailable()) {
+                        sendEnabled = true;
 
-                    Log.i(TAG, "Operation counter: " + operationCounter);
-                    Log.i(TAG, "Sender name: " + senderInfo);
+                        Log.i(TAG, "Operation counter: " + operationCounter);
+                        Log.i(TAG, "Sender name: " + senderInfo);
 
-                    String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
-                    String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
-
-                    Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
-                    Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
+                        String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
+                        String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
 
 
-                    int currentTotal;
-                    double currentTotal_g;
+                        if (currentTotalTLAmount.equals(null) || totalSumBES.equals(null) || totalSumG.equals(null)) {
+                            currentTotalTLAmount = "0";
+                            totalSumBES = "0";
+                            totalSumG = "0";
+                        }
 
-                    switch (operationCounter) {
-                        case 0:
-                            currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
-                            currentTotalTLAmount = Integer.toString(currentTotal);
-                            break;
-                        case 1:
-                            currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
-                            totalSumBES = Integer.toString(currentTotal);
-                            break;
-                        case 2:
-                            currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
-                            totalSumG = Double.toString(currentTotal_g);
-                            break;
+                        Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
+                        Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
+
+                        int currentTotal;
+                        double currentTotal_g;
+
+                        switch (operationCounter) {
+                            case 0:
+                                currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
+                                currentTotalTLAmount = Integer.toString(currentTotal);
+                                break;
+                            case 1:
+                                currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
+                                totalSumBES = Integer.toString(currentTotal);
+                                break;
+                            case 2:
+                                currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
+                                totalSumG = Double.toString(currentTotal_g);
+                                break;
+                        }
+
+                        restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+                            @Override
+                            public void success(Integer getJSON, Response response) {
+                                sendEnabled = true;
+                                Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
+
+                                update(amountToSend);
+                            }
+
+                            @Override
+                            public void failure(RetrofitError error) {
+                                String err = error.getMessage();
+                                Log.e(TAG, "Thingspeak send request failed. " + err);
+                            }
+                        });
+
+                        Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
                     }
+                    else
+                        Toast.makeText(getApplicationContext(), "İnternet bağlantısı yok!", Toast.LENGTH_LONG).show();
 
-                    restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
-                        @Override
-                        public void success(Integer getJSON, Response response) {
-                            sendEnabled = true;
-                            Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
-
-                            update(amountToSend);
-                        }
-
-                        @Override
-                        public void failure(RetrofitError error) {
-                            String err = error.getMessage();
-                            Log.e(TAG, "Thingspeak send request failed. " + err);
-                        }
-                    });
-
-                    Log.i(TAG, "updated stats: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
                 }
 
                 public void onSwipeRight() //To increase the amount to be sent
@@ -258,14 +311,21 @@ public class MainActivity extends AppCompatActivity {
 
         // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+
     }
 
     @Override
     public void onPause() {
+        super.onPause();
         if (deviceConnected)
             onClickStop(); //Stops the bluetooth connection
-        super.onPause();
+    }
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (deviceConnected)
+            onClickStop(); //Stops the bluetooth connection
+
     }
 
 
@@ -404,6 +464,7 @@ public class MainActivity extends AppCompatActivity {
                         onClickSend();
                         Toast.makeText(getApplicationContext(), "Para kumbaraya gönderildi", Toast.LENGTH_SHORT).show();
                         Log.i(TAGB, "info sending sueccessful");
+
                     }
                     switch (operationCounter) {
                         case 0:
@@ -572,44 +633,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    @Override
-    public void onStart() {
-        super.onStart();
 
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client.connect();
-        Action viewAction = Action.newAction(
-                Action.TYPE_VIEW, // TODO: choose an action type.
-                "Main Page", // TODO: Define a title for the content shown.
-                // TODO: If you have web page content that matches this app activity's content,
-                // make sure this auto-generated web page URL is correct.
-                // Otherwise, set the URL to null.
-                Uri.parse("http://host/path"),
-                // TODO: Make sure this auto-generated app URL is correct.
-                Uri.parse("android-app://com.example.stjkagilonu.myapplication/http/host/path")
-        );
-        AppIndex.AppIndexApi.start(client, viewAction);
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        Action viewAction = Action.newAction(
-                Action.TYPE_VIEW, // TODO: choose an action type.
-                "Main Page", // TODO: Define a title for the content shown.
-                // TODO: If you have web page content that matches this app activity's content,
-                // make sure this auto-generated web page URL is correct.
-                // Otherwise, set the URL to null.
-                Uri.parse("http://host/path"),
-                // TODO: Make sure this auto-generated app URL is correct.
-                Uri.parse("android-app://com.example.stjkagilonu.myapplication/http/host/path")
-        );
-        AppIndex.AppIndexApi.end(client, viewAction);
-        client.disconnect();
-    }
 }
 
