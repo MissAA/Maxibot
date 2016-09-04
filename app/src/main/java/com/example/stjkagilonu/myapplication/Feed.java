@@ -33,6 +33,9 @@ public class Feed {
     @SerializedName("field6")
     @Expose
     private String field6;
+    @SerializedName("field7")
+    @Expose
+    private String field7;
 
     /**
      *
@@ -175,6 +178,23 @@ public class Feed {
      * The field6
      */
     public void setField6(String field6) {
+        this.field6 = field6;
+    }
+    /**
+     *
+     * @return
+     * The field7
+     */
+    public Object getField7() {
+        return field6;
+    }
+
+    /**
+     *
+     * @param field7
+     * The field7
+     */
+    public void setField7(String field7) {
         this.field6 = field6;
     }
 

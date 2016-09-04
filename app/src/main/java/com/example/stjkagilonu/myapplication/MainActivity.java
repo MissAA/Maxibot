@@ -1,23 +1,32 @@
 package com.example.stjkagilonu.myapplication;
 
+import android.animation.Animator;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Typeface;
+import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 
 import android.os.Handler;
+import android.support.v4.view.MotionEventCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewAnimationUtils;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
@@ -44,6 +53,8 @@ import retrofit.client.Response;
 
 public class MainActivity extends AppCompatActivity {
 
+
+
     //Log strings
     private static final String TAG = "Kumbara-TL";
     private static final String TAGB = "Bluetooth";
@@ -53,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
     private int operationCounter = 0;
 
     //Information regarding to Kumbara are stored in the following fields. The info will be taken from the server
-    String currentTotalTLAmount, lastCallTimeInfo, lastCallAmountInfo, lastSenderInfo, senderInfo, totalSumBES, totalSumG, lastCallType;
+    String currentTotalTLAmount, lastCallTimeInfo, lastCallAmountInfo, lastSenderInfo, senderInfo, totalSumBES, totalSumG, lastCallType, lastCallTotal;
 
     //Necessary elements for increasing/decreasing the amount. Addition/subtraction operations cycle through the array
     //TL
@@ -76,9 +87,10 @@ public class MainActivity extends AppCompatActivity {
     //Checking if the send button clicked
     boolean sendEnabled = false;
 
-    ImageView money;
+    ImageView background_displayedAmount;
     View selector;
-   // AnimatorSet moveUp;
+    EditText sender;
+    // AnimatorSet moveUp;
     Animation moveUp_text, moveUp;
 
     //Bluetooth connection elements
@@ -101,7 +113,18 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        TextView activity_title_maxibot = (TextView) toolbar.findViewById(R.id.toolbar_text);
 
+      ImageView back_button = (ImageView)findViewById(R.id.back_button);
+        back_button.setOnClickListener(new View.OnClickListener() {
+                                    public void onClick(View v) {
+                                       mainPageActivity();
+                                    }
+                                }
+        );
+
+        Typeface maxibot_font = Typeface.createFromAsset(this.getApplication().getAssets(), "fonts/gpkn.ttf");
+        activity_title_maxibot.setTypeface(maxibot_font);
     }
 
     //This method checks if the device is connected to a network. It does not check if it really has an internet acces (if the connected
@@ -113,75 +136,44 @@ public class MainActivity extends AppCompatActivity {
         return activeNetworkInfo != null;
     }
 
-   /* @Override
-    public void run()
+    public void mainPageActivity()
     {
-        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        if (activeNetworkInfo != null) {
-            try {
-                HttpURLConnection urlc = (HttpURLConnection)
-                        (new URL("http://clients3.google.com/generate_204")
-                                .openConnection());
-                urlc.setRequestProperty("User-Agent", "Android");
-                urlc.setRequestProperty("Connection", "close");
-                urlc.setConnectTimeout(1500);
-                urlc.connect();
-                hasInternetAccess = (urlc.getResponseCode() == 204 &&
-                        urlc.getContentLength() == 0);
-            } catch (IOException e) {
-                Log.e(TAG, "Error checking internet connection", e);
-            }
-        } else {
-            Log.d(TAG, "No network available!");
-            hasInternetAccess = false;
-        }
+        Intent intent = new Intent(this, MainPage.class);
+        startActivity(intent);
     }
-*/
 
     @Override
     public void onStart() {
         super.onStart();
 
-
-        money = (ImageView) findViewById(R.id.currentAmount_BG);
-        selector = (View)findViewById(R.id.line_indicate_product);
+        selector = (View) findViewById(R.id.line_indicate_product);
 
         moveUp = AnimationUtils.loadAnimation(this, R.anim.money_move_up);
         moveUp_text = AnimationUtils.loadAnimation(this, R.anim.money_text_move_up);
-
+        final MediaPlayer money_send_sound = MediaPlayer.create(this, R.raw.coins_in_hand);
 
         //Displayed buttons
-        Button send_tl, send_bes, send_g;
+        final Button send_tl, send_bes, send_g;
+        send_tl = (Button) findViewById(R.id.action_tl);
+        send_bes = (Button) findViewById(R.id.action_bes);
+        send_g = (Button) findViewById(R.id.action_g);
+
         ImageButton send;
 
-        final EditText sender = (EditText) findViewById(R.id.sender_name);
-        sender.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-
-                    senderInfo = sender.getText().toString();
-                    Log.i(TAG, "sender name: " + senderInfo);
-
-                    return true;
-                }
-                return false;
-            }
-        });
 
         final TextView amountToSend = (TextView) findViewById(R.id.amountDisplay);
         Log.i(TAG, "Operation counter: " + operationCounter);
         amountToSend.setText(base_int_tl + " ₺");
 
+        sendEnabled = false;
         update(amountToSend);
 
         //Buttons indicate which currency to be send to the kumbara
-        send_tl = (Button) findViewById(R.id.action_tl);
+
         send_tl.setOnClickListener(new View.OnClickListener() {
                                        public void onClick(View v) {
+                                           selector.setLeft(send_tl.getLeft());
+                                           selector.setRight(send_tl.getRight());
                                            operationCounter = 0;
                                            counter_tl = 0;
                                            counter_g = 0;
@@ -190,9 +182,11 @@ public class MainActivity extends AppCompatActivity {
                                        }
                                    }
         );
-        send_bes = (Button) findViewById(R.id.action_bes);
+
         send_bes.setOnClickListener(new View.OnClickListener() {
                                         public void onClick(View v) {
+                                            selector.setLeft(send_bes.getLeft());
+                                            selector.setRight(send_bes.getRight());
                                             operationCounter = 1;
                                             counter_tl = 0;
                                             counter_g = 0;
@@ -201,9 +195,11 @@ public class MainActivity extends AppCompatActivity {
                                         }
                                     }
         );
-        send_g = (Button) findViewById(R.id.action_g);
+
         send_g.setOnClickListener(new View.OnClickListener() {
                                       public void onClick(View v) {
+                                          selector.setLeft(send_g.getLeft());
+                                          selector.setRight(send_g.getRight());
                                           operationCounter = 2;
                                           counter_tl = 0;
                                           counter_g = 0;
@@ -213,12 +209,15 @@ public class MainActivity extends AppCompatActivity {
                                   }
         );
 
-        send = (ImageButton)findViewById(R.id.send);
+        send = (ImageButton) findViewById(R.id.send);
         send.setOnClickListener(new View.OnClickListener() {
-                                      public void onClick(View v) {
-                                          send(amountToSend);
-                                      }
-                                  }
+                                    public void onClick(View v) {
+                                        background_displayedAmount.startAnimation(moveUp);
+                                        amountToSend.startAnimation(moveUp_text);
+                                        send(amountToSend);
+                                        money_send_sound.start();
+                                    }
+                                }
         );
 
 
@@ -226,21 +225,42 @@ public class MainActivity extends AppCompatActivity {
             onClickStart();
         }
 
-        final ImageView background_displayedAmount = (ImageView) findViewById(R.id.currentAmount_BG);
+        background_displayedAmount = (ImageView) findViewById(R.id.currentAmount_BG);
         if (background_displayedAmount != null) {
             background_displayedAmount.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 public void onSwipeTop() //To send
                 {
+                    background_displayedAmount.startAnimation(moveUp);
+                    amountToSend.startAnimation(moveUp_text);
                     send(amountToSend);
+                    money_send_sound.start();
                 }
-
                 public void onSwipeRight() //To increase the amount to be sent
                 {
                     String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
 
-                    if (!amountToSend.getText().toString().equals(max_int_tl + " " + totalAmountFormatter[1]) && !amountToSend.getText().toString().equals(max_int_g + " GR")) {
-                        counter_tl++;
-                        counter_g++;
+                    if (!amountToSend.getText().toString().equals(base_int_tl + " ₺") && !amountToSend.getText().toString().equals(base_int_g + " GR")) {
+                        counter_tl--;
+                        counter_g--;
+                        amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, -1) + " " + totalAmountFormatter[1]);
+                        Log.i(TAG, "Subtract button pressed");
+                    } else {
+                        counter_tl = 0;
+                        counter_g = 0;
+                    }
+                }
+                public void onSwipeLeft() //To increase the amount to be sent
+                {
+                    String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
+
+                    if (operationCounter == 0 || operationCounter == 2) {
+                        if (!amountToSend.getText().toString().equals(max_int_tl + " " + totalAmountFormatter[1]) && !amountToSend.getText().toString().equals(max_int_g + " GR")) {
+                            counter_tl++;
+                            counter_g++;
+                            amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
+                            Log.i(TAG, "Add button pressed");
+                        }
+                    } else if (operationCounter == 1) {
                         amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
                         Log.i(TAG, "Add button pressed");
                     } else {
@@ -248,28 +268,15 @@ public class MainActivity extends AppCompatActivity {
                         counter_g = amountOrder_gold.length - 1;
                     }
                 }
-
-                public void onSwipeLeft() //To increase the amount to be sent
-                {
-                    String totalAmountFormatter[] = amountToSend.getText().toString().split(" "); //to get the symbol
-
-                    if (!amountToSend.getText().toString().equals(base_int_tl + " ₺") && !amountToSend.getText().toString().equals(base_int_g + " GR")) {
-                        counter_tl--;
-                        counter_g--;
-                        amountToSend.setText(changeAmountToBeSent(amountToSend.getText().toString(), counter_tl, counter_g, 1) + " " + totalAmountFormatter[1]);
-                        Log.i(TAG, "Subtract button pressed");
-                    } else {
-                        counter_tl = 0;
-                        counter_g = 0;
-                    }
-                }
             });
         }
+    }
+
+
 
         // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
 
-    }
 
     @Override
     public void onPause() {
@@ -309,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
                 if (currentAmount > base_int_bes) {
 
                     currentAmount += (bes_increaseAmount * operation);
-                    Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
+                    Log.i(TAG, "currentAmount after operation: " + Integer.toString(currentAmount));
                 } else if (currentAmount == base_int_bes && operation != -1) {
                     currentAmount += (bes_increaseAmount * operation);
                     Log.i(TAG, "currentAmount after operation: " + Double.toString(currentAmount));
@@ -394,7 +401,10 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Total Gold sum: " + totalSumG);
 
                 lastSenderInfo = (String) feed.getField6();
-                Log.i(TAG, "Total sender name: " + lastSenderInfo);
+                Log.i(TAG, "Sender name: " + lastSenderInfo);
+
+                lastCallTotal = (String) feed.getField7();
+                Log.i(TAG, "Total last call type: " + lastCallTotal);
 
                 //Formatting last call time
                 String lastCallTime = feed.getCreatedAt();
@@ -414,15 +424,15 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Updated");
 
                 if (sendEnabled) {
-                    money.startAnimation(moveUp);
-                    amountToSend.startAnimation(moveUp_text);
-
-                    if (deviceConnected) {
-                        onClickSend();
+                    if (deviceConnected)
+                    {
+                        onClickSend(); //Sending via bluetooth
                         Toast.makeText(getApplicationContext(), "Para kumbaraya gönderildi", Toast.LENGTH_SHORT).show();
+
                         Log.i(TAGB, "info sending sueccessful");
 
                     }
+
                     switch (operationCounter) {
                         case 0:
                             counter_tl = 0;
@@ -448,6 +458,8 @@ public class MainActivity extends AppCompatActivity {
                 }
 
 
+
+
                 Log.i(TAG, "updated stats enhanced: " + lastCallType + " " + lastCallAmountInfo + " " + lastCallTimeInfo);
 
             }
@@ -467,17 +479,13 @@ public class MainActivity extends AppCompatActivity {
             sendEnabled = true;
 
             Log.i(TAG, "Operation counter: " + operationCounter);
+            sender = (EditText) findViewById(R.id.sender_name);
+            senderInfo = sender.getText().toString();
             Log.i(TAG, "Sender name: " + senderInfo);
 
-            String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
-            String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
+            final String totalAmountFormatter[] = amountToSend.getText().toString().split(" ");
+            final String formattedAmountToSend = totalAmountFormatter[0]; //[0] would indicate the amount, [1] would indicate the type
 
-
-            if (currentTotalTLAmount.equals(null) || totalSumBES.equals(null) || totalSumG.equals(null)) {
-                currentTotalTLAmount = "0";
-                totalSumBES = "0";
-                totalSumG = "0";
-            }
 
             Log.i(TAG, "Current total before sending: " + currentTotalTLAmount);
             Log.i(TAG, "Amount to send before sending: " + amountToSend.getText().toString());
@@ -489,22 +497,36 @@ public class MainActivity extends AppCompatActivity {
                 case 0:
                     currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(currentTotalTLAmount);
                     currentTotalTLAmount = Integer.toString(currentTotal);
+                    lastCallTotal = currentTotalTLAmount;
                     break;
                 case 1:
                     currentTotal = Integer.parseInt(formattedAmountToSend) + Integer.parseInt(totalSumBES);
                     totalSumBES = Integer.toString(currentTotal);
+                    lastCallTotal = totalSumBES;
                     break;
                 case 2:
                     currentTotal_g = Double.parseDouble(formattedAmountToSend) + Double.parseDouble(totalSumG);
                     totalSumG = Double.toString(currentTotal_g);
+                    lastCallTotal = totalSumG;
+
                     break;
             }
 
-            restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, new Callback<Integer>() {
+            restInt.setFields(totalAmountFormatter[1], formattedAmountToSend, currentTotalTLAmount, totalSumBES, totalSumG, senderInfo, lastCallTotal, new Callback<Integer>() {
                 @Override
                 public void success(Integer getJSON, Response response) {
                     sendEnabled = true;
-                    Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(getApplicationContext(), "Para hesaba gönderildi", Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Para Gönderildi")
+                            .setMessage(formattedAmountToSend + " " + totalAmountFormatter[1] + " kumbaraya gönderildi.")
+                            .setCancelable(false)
+                            .setPositiveButton("Tamam", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+
+                                }
+                            }).create().show();
 
                     update(amountToSend);
                 }
@@ -625,9 +647,39 @@ public class MainActivity extends AppCompatActivity {
         thread.start();
     }
 
-    public void onClickSend() {
-        String string = operationCounter + " " + lastCallType + " " + lastCallAmountInfo + " " + currentTotalTLAmount + " " +
-                totalSumBES + " " + totalSumG + " " + senderInfo + " ";
+    public void onClickSend()
+    {
+        double total_gold_formatter = Double.parseDouble(totalSumG);
+        double current_gold_formatter;
+
+        String modifiedTotalGold, modifiedCurrentGold, string;
+
+        String formatter[];
+
+        formatter = totalSumG.split(" ");
+        modifiedTotalGold = formatter[0];
+
+        //Formats the gold amount to make it operable by device
+        total_gold_formatter = Double.parseDouble(modifiedTotalGold);
+        total_gold_formatter *= 10;
+        modifiedTotalGold = Double.toString(total_gold_formatter);
+
+        if(operationCounter == 2)
+        {
+            formatter = lastCallAmountInfo.split(" ");
+            modifiedCurrentGold = formatter[0];
+
+            current_gold_formatter = Double.parseDouble(modifiedCurrentGold);
+            current_gold_formatter *= 10;
+            modifiedCurrentGold = Double.toString(current_gold_formatter);
+            string = operationCounter + " " + lastCallType + " " + modifiedCurrentGold + " " + currentTotalTLAmount + " " +
+                    totalSumBES + " " + modifiedTotalGold + " " + senderInfo + " ";
+        }
+        else
+        {
+            string = operationCounter + " " + lastCallType + " " + lastCallAmountInfo + " " + currentTotalTLAmount + " " +
+                    totalSumBES + " " + modifiedTotalGold + " " + senderInfo + " ";
+        }
 
         Log.i(TAGB, "info sent: " + string);
         try {
@@ -651,15 +703,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void moveSelector(View view)
-    {
-        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) view.getLayoutParams();
-        layoutParams.leftMargin = X - _xDelta;
-        layoutParams.topMargin = Y - _yDelta;
-        layoutParams.rightMargin = -250;
-        layoutParams.bottomMargin = -250;
-        view.setLayoutParams(layoutParams);
-    }
+
 
 }
 

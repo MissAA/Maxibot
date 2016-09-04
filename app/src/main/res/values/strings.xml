@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Maxibot</string>
+    <string name="app_name">Maxibot </string>
     <string name="action_settings">Ayarlar</string>
     <string name="text_ode">Öde</string>
     <string name="text_fatura_odeme">Fatura Ödeme</string>
